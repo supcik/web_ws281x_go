@@ -22,7 +22,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/gorilla/websocket"
+	"encoding/json"
 	"github.com/mohae/deepcopy"
 )
 
@@ -72,7 +72,7 @@ type WS2811 struct {
 	initialized bool
 	options     *Option
 	leds        [][]uint32
-	conn        *websocket.Conn
+	client      Client
 	lastRender  time.Time
 }
 
@@ -115,15 +115,16 @@ func (ws2811 *WS2811) Render() error {
 	}
 	payload := struct {
 		Option ChannelOption `json:"option"`
-		Leds []uint32 `json:"leds"`
+		Leds   []uint32      `json:"leds"`
 	}{
 		ws2811.options.Channels[0],
 		ws2811.leds[0],
 	}
-	err = ws2811.conn.WriteJSON(payload)
+	json, err := json.Marshal(payload)
 	if err != nil {
 		return err
 	}
+	ws2811.client.hub.broadcast <- json
 	ws2811.lastRender = time.Now()
 	return err
 }
@@ -133,7 +134,7 @@ func (ws2811 *WS2811) Render() error {
 // (8 is the color depth and 3 is the number of colors (LEDs) per pixel).
 // See https://cdn-shop.adafruit.com/datasheets/WS2811.pdf for more details.
 func (ws2811 *WS2811) Wait() error {
-	dt := (float64(8*3*ws2811.options.Channels[0].LedCount)+0.05)/float64(ws2811.options.Frequency)
+	dt := (float64(8*3*ws2811.options.Channels[0].LedCount) + 0.05) / float64(ws2811.options.Frequency)
 	nextRender := ws2811.lastRender.Add(time.Duration(dt * float64(time.Second)))
 	time.Sleep(time.Until(nextRender))
 	return nil
