@@ -75,6 +75,7 @@ func (c *Client) sendMessage(message []byte) error {
 	if err := w.Close(); err != nil {
 		return errors.WithMessage(err, "can't close writer")
 	}
+	return nil
 }
 
 // writePump pumps messages from the hub to the websocket connection.
