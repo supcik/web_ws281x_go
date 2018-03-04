@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"encoding/json"
+
 	"github.com/mohae/deepcopy"
 )
 
@@ -72,7 +73,7 @@ type WS2811 struct {
 	initialized bool
 	options     *Option
 	leds        [][]uint32
-	client      Client
+	hub         *Hub
 	lastRender  time.Time
 }
 
@@ -89,12 +90,13 @@ var DefaultOptions = Option{
 	},
 }
 
-// MakeWS2811 create an instance of WS2811.
-func MakeWS2811(opt *Option) (ws2811 *WS2811, err error) {
+// MakeWS2811 create an instance of web WS2811 linked to a given hub.
+func MakeWS2811(opt *Option, hub *Hub) (ws2811 *WS2811, err error) {
 	ws2811 = &WS2811{
 		initialized: false,
 	}
-	ws2811.options = deepcopy.Copy(*opt).(*Option)
+	ws2811.options = deepcopy.Copy(opt).(*Option)
+	ws2811.hub = hub
 	return ws2811, err
 }
 
@@ -104,6 +106,9 @@ func (ws2811 *WS2811) Init() error {
 		return errors.New("device already initialized")
 	}
 	ws2811.leds = make([][]uint32, RpiPwmChannels)
+	for i := 0; i < len(ws2811.options.Channels); i++ {
+		ws2811.leds[i] = make([]uint32, ws2811.options.Channels[i].LedCount)
+	}
 	return nil
 }
 
@@ -124,7 +129,7 @@ func (ws2811 *WS2811) Render() error {
 	if err != nil {
 		return err
 	}
-	ws2811.client.hub.broadcast <- json
+	ws2811.hub.broadcast <- json
 	ws2811.lastRender = time.Now()
 	return err
 }
