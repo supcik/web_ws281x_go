@@ -19,12 +19,11 @@
 package ws2811
 
 import (
-	"errors"
+	"encoding/json"
 	"time"
 
-	"encoding/json"
-
 	"github.com/mohae/deepcopy"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -153,4 +152,19 @@ func (ws2811 *WS2811) Fini() {
 // Leds returns the LEDs array of a given channel
 func (ws2811 *WS2811) Leds(channel int) []uint32 {
 	return ws2811.leds[channel]
+}
+
+// SetLedsSync wait for the frame to finish and replace all the LEDs
+func (ws2811 *WS2811) SetLedsSync(channel int, leds []uint32) error {
+	if err := ws2811.Wait(); err != nil {
+		return errors.WithMessage(err, "Error setting LEDs")
+	}
+	l := len(leds)
+	if l >= len(ws2811.leds[channel]) {
+		return errors.New("Error: Too many LEDs")
+	}
+	for i := 0; i < l; i++ {
+		ws2811.leds[channel][i] = leds[i]
+	}
+	return nil
 }
